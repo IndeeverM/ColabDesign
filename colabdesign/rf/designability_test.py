@@ -140,6 +140,16 @@ def main(argv):
       af_model.opt["fix_pos"] = p[p < af_model._len]
 
     mpnn_model.get_af_inputs(af_model)
+
+    from colabdesign.mpnn.model import aa_order
+
+    CONSENSUS = "MGCGCS"
+    chain_A_len = af_model._lengths[0]
+
+    for i, aa in enumerate(CONSENSUS):
+      mpnn_model._inputs["bias"][i, :] = -1e9          # block everything
+      mpnn_model._inputs["bias"][i, aa_order[aa]] = 1e9 # force this AA
+    mpnn_model._inputs["fix_pos"] = np.array(list(range(len(CONSENSUS))))
     outs.append(mpnn_model.sample(num=o.num_seqs//batch_size, batch=batch_size, temperature=sampling_temp))
 
   if protocol == "binder":
