@@ -143,7 +143,7 @@ def main(argv):
 
     from colabdesign.mpnn.model import aa_order
 
-    CONSENSUS = "MGCGCS"
+    CONSENSUS = "M"
     chain_A_len = af_model._lengths[0]
 
     for i, aa in enumerate(CONSENSUS):
