@@ -46,6 +46,7 @@ def main(argv):
   ag.add(["use_soluble"   ],     False,   None, ["use solubleMPNN"])
   ag.add(["num_recycles=" ],         3,    int, ["number of recycles"])
   ag.add(["rm_aa="],               "C",    str, ["disable specific amino acids from being sampled"])
+  ag.add(["fixed_res="],           "",    str, ["fixed residues e.g. A1:M, B10:W"] )
   ag.add(["num_designs="  ],         1,    int, ["number of designs to evaluate"])
   ag.add(["mpnn_sampling_temp=" ], 0.1,  float, ["sampling temperature used by proteinMPNN"])
   ag.txt("-------------------------------------------------------------------------------------")
@@ -143,13 +144,22 @@ def main(argv):
 
     from colabdesign.mpnn.model import aa_order
 
-    CONSENSUS = "M"
-    chain_A_len = af_model._lengths[0]
-
-    for i, aa in enumerate(CONSENSUS):
-      mpnn_model._inputs["bias"][i, :] = -1e9          # block everything
-      mpnn_model._inputs["bias"][i, aa_order[aa]] = 1e9 # force this AA
-    mpnn_model._inputs["fix_pos"] = np.array(list(range(len(CONSENSUS))))
+    fixed_pos_list = []
+    if o.fixed_res:
+      chain_lens = af_model._lengths
+      chain_starts = {chains[c_idx]: sum(chain_lens[:c_idx]) for c_idx in range(len(chain_lens))}
+      for item in o.fixed_res.replace(" ", "").split(","):
+        if ":" in item:
+          c_p, aa = item.split(":")
+          chain_id = c_p[0]
+          pos = int(c_p[1:]) - 1 # 0-indexed internally
+          if chain_id in chain_starts and pos < chain_lens[chains.index(chain_id)]:
+            global_idx = chain_starts[chain_id] + pos
+            mpnn_model._inputs["bias"][global_idx, :] = -1e9
+            mpnn_model._inputs["bias"][global_idx, aa_order[aa]] = 1e9
+            fixed_pos_list.append(global_idx)
+    if fixed_pos_list:
+      mpnn_model._inputs["fix_pos"] = np.array(fixed_pos_list)
     outs.append(mpnn_model.sample(num=o.num_seqs//batch_size, batch=batch_size, temperature=sampling_temp))
 
   if protocol == "binder":
